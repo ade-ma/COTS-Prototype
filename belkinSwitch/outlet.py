@@ -5,6 +5,7 @@ class Outlet:
     Class represents a Belkin WeMo wireless outlet.
     """
     def __init__(self, ip, port='49153'):
+        # the port changes.  Not sure how to tell what the port is automatically.  Might be 49152 - 49154
         self.ip = ip
         self.port = port
         self.conn = upnp(ip, port, None,False)
