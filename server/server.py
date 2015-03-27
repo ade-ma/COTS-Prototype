@@ -1,7 +1,10 @@
 from flask import Flask, request
+from flask.ext.cors import CORS, cross_origin
 import csv
 import time
+from outlet import Outlet
 app = Flask(__name__)
+cors = CORS(app)
 
 #########################################################################################
 ##
@@ -66,7 +69,7 @@ def humiditySense():
 ## These endpoints return just the most recent sensor value for the sensor requested ##
 #######################################################################################
 
-@app.route('/lastTemp', methods=['GET', 'POST'])
+@app.route('/lastTemperature', methods=['GET', 'POST'])
 def lastTemp():
 	sensorID = request.args.get('ID')
 	for measurement in tempLog[::-1]:
@@ -90,7 +93,28 @@ def lastCommand():
 			return command[3]
 	return "E"
 
+##########################################################
+## This endpoint turns off and on the swiwtch for the demo
+##########################################################
 
+@app.route('/toggleOutlet', methods=['GET','POST'])
+def toggleOutlet():
+    factor = request.args.get('factor')
+    outlet = outlets.get(factor)
+    if not outlet is None: 
+        if outlet.getState() == 1:
+            outlet.turnOff()
+            return('Outlet now on')
+        else:
+            outlet.turnOn()
+            return('Outlet now off')
+    
+    else:
+        msg = "no outlets set up for " + factor
+        print msg
+        return msg
+    
+2
 ###################################
 ## This endpoint prints all logs ##
 ###################################
@@ -128,6 +152,15 @@ for i in log:
 	if i[0] == 'command':
 		commandLog.append(i)
 
+outlets = {'Lights':'94:10:3e:30:8f:69'}
+# set up the outlets
+for key in outlets:
+    new_outlet = Outlet(outlets[key])
+    outlets[key] = new_outlet
+
 if __name__ == '__main__':
+
 	app.debug = True
 	app.run(host='0.0.0.0')
+	
+	     
