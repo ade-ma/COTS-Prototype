@@ -35,7 +35,9 @@ def status():
 def tempSense():
 	sensorID = request.args.get('ID')
 	sensorValue = request.args.get('value')
-	ts = time.time()
+	
+	# format in milliseconds from epoch
+	ts = int(time.time()*1000)
 
 	#Add data to volitile log
 	tempLog.append(['temp', ts, sensorID, sensorValue])
@@ -43,7 +45,7 @@ def tempSense():
 	#Write sensorValue to CSV
 	with open('log.csv', 'a') as csvfile:
 	    writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-	    writer.writerow(['temp', ts, sensorID, sensorValue])
+	    writer.writerow(['temp', str(ts), sensorID, sensorValue])
 
 	return "Sensor " + str(sensorID) + " is reporting a temperature of " + str(sensorValue) + " degrees."
 
@@ -52,7 +54,9 @@ def tempSense():
 def humiditySense():
 	sensorID = request.args.get('ID')
 	sensorValue = request.args.get('value')
-	ts = time.time()
+	
+	# format in milliseconds from epoch
+	ts = int(time.time()*1000)
 
 	#Add data to volitile log
 	humidityLog.append(['humidity', ts, sensorID, sensorValue])
@@ -60,7 +64,7 @@ def humiditySense():
 	#Write sensorValue to CSV
 	with open('log.csv', 'a') as csvfile:
 	    writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-	    writer.writerow(['humidity', ts, sensorID, sensorValue])
+	    writer.writerow(['humidity', str(ts), sensorID, sensorValue])
 
 	return "Humidity sensor " + str(sensorID) + " is reporting a humidity of " + str(sensorValue) + "%."
 
@@ -74,7 +78,7 @@ def lastTemp():
 	sensorID = request.args.get('ID')
 	for measurement in tempLog[::-1]:
 		if measurement[2] == sensorID:
-			return measurement[3]
+			return str(measurement[1]) + '--' + str(measurement[3])
 	return "E"
 
 @app.route('/lastHumidity', methods=['GET', 'POST'])
@@ -82,7 +86,7 @@ def lastHumidity():
 	sensorID = request.args.get('ID')
 	for measurement in humidityLog[::-1]:
 		if measurement[2] == sensorID:
-			return measurement[3]
+			return str(measurement[1]) + '--' + str(measurement[3])
 	return "E"
 
 @app.route('/lastCommand', methods=['GET', 'POST'])
