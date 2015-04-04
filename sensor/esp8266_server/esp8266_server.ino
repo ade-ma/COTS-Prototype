@@ -3,7 +3,7 @@
 //esp8266 settings
 #define SSID "ADEMA"
 #define PASS ""
-#define IP "192.168.1.4"
+#define IP "192.168.1.103"
 #define ID "001"
 
 //setup software serial to talk to esp8266
@@ -15,6 +15,10 @@ SoftwareSerial espComm(10, 11); // RX->pin 10 Tx->pin 11
 #define DHTTYPE DHT11   // using DHT11 sensor
 DHT dht(DHTPIN, DHTTYPE);
 
+#define RESET 5 //esp harware reset
+#definte LED 13
+float i = 0.0;
+
 void setup()
 {
   espComm.begin(9600);//talks to esp8266
@@ -24,13 +28,22 @@ void setup()
   delay(5000);
   if(espComm.find("OK")){
     Serial.println("RECEIVED: OK esp8266 initialization");
-    connectWiFi();
+    for(int i=0;i<5;i++){
+      if(connectWiFi()){
+        Serial.println("Wifi Connection attempt success");
+        break;
+      }
+    }
+    Serial.println("Wifi Connection failed 5X");
   }
 }
 
 void loop(){
+  reset();
+  delay(5000);
   float tempC = 32.2;
   float t = dht.readTemperature(true);//Fahrenheit
+  //float t = i;//debug
   float h = dht.readHumidity();//Percent
   if (isnan(h) || isnan(t)) {
     Serial.println("Error failed to read from DHT sensor");
@@ -39,9 +52,11 @@ void loop(){
   char buffer[10];
   String temp = dtostrf(t, 4, 1, buffer); //F
   String hum = dtostrf(h, 4, 1, buffer);
-  type = "temp";
+  String type = "temp";
   updateSense(temp, type);//send temp data to server
-  type = "humidity"
+  type = "humidity";
+  reset();
+  delay(6000);
   updateSense(hum, type);//send humidity data to server
   delay(5000);
 }
@@ -49,7 +64,7 @@ void loop(){
 void updateSense(String value, String type){
   String cmd = "AT+CIPSTART=\"TCP\",\"";//connect to IP address cmd
   cmd += IP;
-  cmd += "\",80";
+  cmd += "\",5000";
   sendDebug(cmd);
   delay(20000);
   if(espComm.find("Error")){
@@ -59,11 +74,13 @@ void updateSense(String value, String type){
   //build send data command
   cmd = "GET /";
   cmd += type;
-  cmd += "sense?ID=";
+  cmd += "Sense?ID=";
   cmd += ID;
   cmd += "&value=";
-  cmd +=value
-  cmd += "\r\n";
+  cmd += value;
+  cmd += " HTTP/1.1\r\n\r\n";
+  Serial.print("val=");
+  Serial.println(value);
   espComm.print("AT+CIPSEND=");
   espComm.println(cmd.length());
   if(espComm.find(">")){
@@ -75,6 +92,7 @@ void updateSense(String value, String type){
   }
   if(espComm.find("OK")){
     Serial.println("RECEIVED: OK update data");
+    sendDebug("AT+CIPCLOSE");
   }else{
     Serial.println("RECEIVED: Error update data");
   }
@@ -95,7 +113,7 @@ boolean connectWiFi(){
   cmd+=PASS;
   cmd+="\"";
   sendDebug(cmd);
-  delay(5000);
+  delay(7000);
   if(espComm.find("OK")){
     Serial.println("RECEIVED: OK wifi connect");
     return true;
@@ -103,4 +121,13 @@ boolean connectWiFi(){
     Serial.println("RECEIVED: Error wifi connect");
     return false;
   }
+  
+}
+
+void reset(){
+  digitalWrite(RESET,LOW);
+  digitalWrite(LED,HIGH);
+  delay(100);
+  digitalWrite(RESET,HIGH);
+  digitalWrite(LED,LOW);
 }
