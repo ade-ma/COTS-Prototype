@@ -11,4 +11,6 @@ To set up the server, install uwsgi by running
     
 Then run
 
-    uwsgi --http [ip-addres:port] --plugin python --wsgi-file path/to/server.py --callable app
+    uwsgi --http ip-addres:port --plugin python --wsgi-file server.py --callable app
+    
+NOTE: you need to run this commnd from the same folder as server.py
