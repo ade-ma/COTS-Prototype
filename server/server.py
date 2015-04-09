@@ -2,7 +2,8 @@ from flask import Flask, request
 from flask.ext.cors import CORS, cross_origin
 import csv
 import time
-from outlet import Outlet
+#from outlet import Outlet
+import subprocess
 app = Flask(__name__)
 cors = CORS(app)
 
@@ -35,7 +36,11 @@ def status():
 def tempSense():
 	sensorID = request.args.get('ID')
 	sensorValue = request.args.get('value')
+	command = "python sendTemp.py " + str(sensorID) + " " + str(sensorValue)
 	
+	#Relay data to public server!
+	subprocess.call(["python", "sendTemp.py", str(sensorID), str(sensorValue)])
+
 	# format in milliseconds from epoch
 	ts = int(time.time()*1000)
 
@@ -54,6 +59,9 @@ def tempSense():
 def humiditySense():
 	sensorID = request.args.get('ID')
 	sensorValue = request.args.get('value')
+	
+	#Relay data to public server!
+	subprocess.call(["python", "sendHumidity.py", str(sensorID), str(sensorValue)])
 	
 	# format in milliseconds from epoch
 	ts = int(time.time()*1000)
@@ -118,7 +126,7 @@ def toggleOutlet():
         print msg
         return msg
     
-2
+
 ###################################
 ## This endpoint prints all logs ##
 ###################################
@@ -156,11 +164,7 @@ for i in log:
 	if i[0] == 'command':
 		commandLog.append(i)
 
-outlets = {'Lights':'94:10:3e:30:8f:69'}
-# set up the outlets
-for key in outlets:
-    new_outlet = Outlet(outlets[key])
-    outlets[key] = new_outlet
+
 
 if __name__ == '__main__':
 
