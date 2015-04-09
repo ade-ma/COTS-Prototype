@@ -48,6 +48,8 @@ def tempSense():
 	    writer.writerow(['temp', str(ts), sensorID, sensorValue])
 
 	return "Sensor " + str(sensorID) + " is reporting a temperature of " + str(sensorValue) + " degrees."
+	
+	csvfile.close()
 
 
 @app.route('/humiditySense', methods=['GET', 'POST'])
@@ -67,10 +69,12 @@ def humiditySense():
 	    writer.writerow(['humidity', str(ts), sensorID, sensorValue])
 
 	return "Humidity sensor " + str(sensorID) + " is reporting a humidity of " + str(sensorValue) + "%."
+	
+	csvfile.close()
 
 
 #######################################################################################
-## These endpoints return just the most recent sensor value for the sensor requested ##
+## These endpoints return data from the sensor requested ##
 #######################################################################################
 
 @app.route('/lastTemperature', methods=['GET', 'POST'])
@@ -89,6 +93,42 @@ def lastHumidity():
 			return str(measurement[1]) + '--' + str(measurement[3])
 	return "E"
 
+DEFAULT_RANGE = '6' # number of hours
+@app.route('/rangeHumidity', methods=['GET', 'POST'])
+def rangeHumidity():
+	sensorID = request.args.get('ID')
+	hours = float(request.args.get('hours', DEFAULT_RANGE)) 
+	
+	seconds = 3600*hours
+	cutoff = 1000*(time.time() - seconds)
+	# filter to correct date range and just the sensor we want
+	recent = [data for data in humidityLog if data[2]==sensorID and int(data[1]) >= cutoff]
+	
+	if len(recent) != 0:
+	    condensed = ['--'.join([str(x[1]), str(x[3])]) for x in compress(recent)]
+	    response = ';'.join(condensed)
+	    return response
+	
+	return "E"
+
+@app.route('/rangeTemperature', methods=['GET', 'POST'])
+def rangeTemperature():
+	sensorID = request.args.get('ID')
+	hours = float(request.args.get('hours', DEFAULT_RANGE)) 
+	
+	seconds = 3600*hours
+	cutoff = 1000*(time.time() - seconds)
+	print cutoff
+	# filter to correct date range and just the sensor we want
+	recent = [data for data in tempLog if data[2]==sensorID and int(data[1]) >= cutoff]
+	
+	if len(recent) != 0:
+	    condensed = ['--'.join([str(x[1]), str(x[3])]) for x in compress(recent)]
+	    response = ';'.join(condensed)
+	    return response
+	
+	return "E"
+
 @app.route('/lastCommand', methods=['GET', 'POST'])
 def lastCommand():
 	deviceID = request.args.get('ID')
@@ -96,6 +136,36 @@ def lastCommand():
 		if command[2] == deviceID:
 			return command[3]
 	return "E"
+
+def compress(data):
+    """
+    remove middle points in colinear sets of three
+    """
+    
+    def x_val(datum): # timestamp
+        return float(datum[1])
+    
+    def y_val(datum): #sensor-value
+        return float(datum[3])
+    
+    def slope(datum1, datum2):
+        dy = (y_val(datum2) - y_val(datum1))
+        dx = (x_val(datum2) - x_val(datum1))
+        return dy/dx
+      
+    # remove middle points in colinear sets of three
+    index = 1
+    while index < len(data)-1:
+        slope_left = slope(data[index - 1], data[index])
+        slope_right = slope(data[index], data[index+1])
+        
+        if slope_left == slope_right:
+            data.pop(index)
+        
+        else:
+            index += 1
+        
+    return data
 
 ##########################################################
 ## This endpoint turns off and on the swiwtch for the demo
@@ -117,8 +187,7 @@ def toggleOutlet():
         msg = "no outlets set up for " + factor
         print msg
         return msg
-    
-2
+
 ###################################
 ## This endpoint prints all logs ##
 ###################################
@@ -157,14 +226,9 @@ for i in log:
 		commandLog.append(i)
 
 outlets = {'Lights':'94:10:3e:30:8f:69'}
-# set up the outlets
-for key in outlets:
-    new_outlet = Outlet(outlets[key])
-    outlets[key] = new_outlet
+
 
 if __name__ == '__main__':
 
 	app.debug = True
-	app.run(host='0.0.0.0')
-	
-	     
+	app.run(host='0.0.0.0',port=80)
