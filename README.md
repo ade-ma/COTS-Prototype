@@ -1,4 +1,4 @@
-Repo for the WeMo solution.
+Repo for the WeMo solution -- branch for the droplet server.
 
 To run make sure flask and flask-cors are installed
 
