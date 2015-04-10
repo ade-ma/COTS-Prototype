@@ -179,8 +179,7 @@ def compress_lossy(data, max_length):
     Compress to a given length, probably lossy
     
     The strategy is to replace clusters of points by the average
-    """
-    
+    ""
     def x_val(datum): # timestamp
         return float(datum[1])
     
@@ -211,6 +210,9 @@ def compress_lossy(data, max_length):
     
     block_size = int(round(len(data)/float(max_length)))
     index = block_size
+    if block_size == 0:
+	return data
+
     while index < len(data):
         
         block = data[index - block_size: index]
