@@ -145,7 +145,7 @@ def lastCommand():
 
 def compress(data):
     """
-    remove middle points in colinear sets of three
+    remove all the middle points in colinear sets.
     """
     new_data = list(list(x) for x in data)
     
