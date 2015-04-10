@@ -185,7 +185,7 @@ def lpass(data):
             ave += data[index - len(kernel) + i][3]*kernel[i]
         
         new_data[index][3] = ave
-        index++
+        index+=1
     
     return new_data
 
