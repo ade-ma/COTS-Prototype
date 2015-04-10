@@ -105,7 +105,7 @@ def rangeHumidity():
 	recent = [data for data in humidityLog if data[2]==sensorID and int(data[1]) >= cutoff]
 	
 	if len(recent) != 0:
-	    condensed = ['--'.join([str(x[1]), str(x[3])]) for x in compress(recent)]
+	    condensed = ['--'.join([str(x[1]), str(x[3])]) for x in compress(lpass(recent))]
 	    response = ';'.join(condensed)
 	    return response
 	
@@ -118,12 +118,12 @@ def rangeTemperature():
 	
 	seconds = 3600*hours
 	cutoff = 1000*(time.time() - seconds)
-	print cutoff
+	
 	# filter to correct date range and just the sensor we want
 	recent = [data for data in tempLog if data[2]==sensorID and int(data[1]) >= cutoff]
 	
-	if len(recent) != 0:
-	    condensed = ['--'.join([str(x[1]), str(x[3])]) for x in compress(recent)]
+	if len(recent) != 0:	    
+	    condensed = ['--'.join([str(x[1]), str(x[3])]) for x in compress(lpass(recent))]
 	    response = ';'.join(condensed)
 	    return response
 	
@@ -141,6 +141,7 @@ def compress(data):
     """
     remove middle points in colinear sets of three
     """
+    new_data = list(list(x) for x in data)
     
     def x_val(datum): # timestamp
         return float(datum[1])
@@ -156,16 +157,38 @@ def compress(data):
     # remove middle points in colinear sets of three
     index = 1
     while index < len(data)-1:
-        slope_left = slope(data[index - 1], data[index])
-        slope_right = slope(data[index], data[index+1])
+        slope_left = slope(new_data[index - 1], new_data[index])
+        slope_right = slope(new_data[index], new_data[index+1])
         
         if slope_left == slope_right:
-            data.pop(index)
+            new_data.pop(index)
         
         else:
             index += 1
         
-    return data
+    return new_data
+
+def lpass(data):
+    """
+    low-pass noisy data with simple FIR
+    """
+    
+    new_data = list(list(x) for x in data)
+    
+    kernel = [1, 2, 3, 3]
+    kernel = [x/float(sum(kernel)) for x in kernel]
+    
+    index = len(kernel) -1
+    while index < len(data):
+        ave = 0
+        for i in range(len(kernel)):
+            ave += data[index - len(kernel) + i][3]*kernel[i]
+        
+        new_data[index][3] = ave
+        index++
+    
+    return new_data
+
 
 ##########################################################
 ## This endpoint turns off and on the swiwtch for the demo
@@ -231,4 +254,4 @@ outlets = {'Lights':'94:10:3e:30:8f:69'}
 if __name__ == '__main__':
 
 	app.debug = True
-	app.run(host='0.0.0.0',port=80)
+	app.run(host='0.0.0.0',port=8000)
