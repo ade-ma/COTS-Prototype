@@ -182,7 +182,7 @@ def lpass(data):
     while index < len(data):
         ave = 0
         for i in range(len(kernel)):
-            ave += data[index - len(kernel) + i][3]*kernel[i]
+            ave += float(data[index - len(kernel) + i][3])*kernel[i]
         
         new_data[index][3] = ave
         index+=1
