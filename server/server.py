@@ -94,10 +94,12 @@ def lastHumidity():
 	return "E"
 
 DEFAULT_RANGE = '6' # number of hours
+DEFAULT_MAX_LENGTH = '300'
 @app.route('/rangeHumidity', methods=['GET', 'POST'])
 def rangeHumidity():
 	sensorID = request.args.get('ID')
 	hours = float(request.args.get('hours', DEFAULT_RANGE)) 
+	max_length = int(request.args.get('max_length', DEFAULT_MAX_LENGTH))
 	
 	seconds = 3600*hours
 	cutoff = 1000*(time.time() - seconds)
@@ -105,7 +107,9 @@ def rangeHumidity():
 	recent = [data for data in humidityLog if data[2]==sensorID and int(data[1]) >= cutoff]
 	
 	if len(recent) != 0:
-	    condensed = ['--'.join([str(x[1]), str(x[3])]) for x in compress(lpass(recent))]
+	    first_filter = (lpass(recent))
+	    second_filter= compress(compress_lossy(first_filter, max_length))
+	    condensed = ['--'.join([str(x[1]), str(x[3])]) for x in second_filter]
 	    response = ';'.join(condensed)
 	    return response
 	
@@ -115,15 +119,17 @@ def rangeHumidity():
 def rangeTemperature():
 	sensorID = request.args.get('ID')
 	hours = float(request.args.get('hours', DEFAULT_RANGE)) 
-	
+	max_length = int(request.args.get('max_length', DEFAULT_MAX_LENGTH))
 	seconds = 3600*hours
 	cutoff = 1000*(time.time() - seconds)
 	
 	# filter to correct date range and just the sensor we want
 	recent = [data for data in tempLog if data[2]==sensorID and int(data[1]) >= cutoff]
 	
-	if len(recent) != 0:	    
-	    condensed = ['--'.join([str(x[1]), str(x[3])]) for x in compress(lpass(recent))]
+	if len(recent) != 0:
+	    first_filter = (lpass(recent))
+	    second_filter= compress(compress_lossy(first_filter, max_length))
+	    condensed = ['--'.join([str(x[1]), str(x[3])]) for x in second_filter]
 	    response = ';'.join(condensed)
 	    return response
 	
@@ -139,7 +145,7 @@ def lastCommand():
 
 def compress(data):
     """
-    remove middle points in colinear sets of three
+    remove all the middle points in colinear sets.
     """
     new_data = list(list(x) for x in data)
     
@@ -156,7 +162,7 @@ def compress(data):
       
     # remove middle points in colinear sets of three
     index = 1
-    while index < len(data)-1:
+    while index < len(new_data)-1:
         slope_left = slope(new_data[index - 1], new_data[index])
         slope_right = slope(new_data[index], new_data[index+1])
         
@@ -167,6 +173,57 @@ def compress(data):
             index += 1
         
     return new_data
+    
+def compress_lossy(data, max_length):
+    """
+    Compress to a given length, probably lossy
+    
+    The strategy is to replace clusters of points by the average
+    """
+    
+    def x_val(datum): # timestamp
+        return float(datum[1])
+    
+    def y_val(datum): #sensor-value
+        return float(datum[3])
+    
+    def replace_y(datum, new_y): #change out for new value
+        datum[3] = new_y
+    
+    def replace_x(datum, new_x):
+        datum[1] = new_x
+    
+    def condense_block(block):
+        x_vals = [x_val(datum) for datum in block]
+        y_vals = [y_val(datum) for datum in block]
+
+        x_ave = int(sum(x_vals)/float(len(x_vals)))
+        y_ave = sum(y_vals)/float(len(y_vals))
+                
+        # copy the format, but make the point average
+        new_datum = list(data[0])
+        replace_y(new_datum, y_ave)
+        replace_x(new_datum, x_ave)
+        
+        return new_datum
+    
+    new_data = []
+    
+    block_size = int(round(len(data)/float(max_length)))
+    index = block_size
+    while index < len(data):
+        
+        block = data[index - block_size: index]
+        new_data.append(condense_block(block))
+        index += block_size
+    
+    # turn the remaining points into a block, but we want the final x-value
+    # to be the same as the original, since it is the most recent
+    index -= block_size;
+    last_block = data[index:]
+    new_data.append(lpass(last_block)[-1])
+    
+    return new_data
 
 def lpass(data):
     """
@@ -175,14 +232,14 @@ def lpass(data):
     
     new_data = list(list(x) for x in data)
     
-    kernel = [1, 2, 3, 3]
+    kernel = [.5, 1, 2, 2, 3, 3]
     kernel = [x/float(sum(kernel)) for x in kernel]
     
     index = len(kernel) -1
     while index < len(data):
         ave = 0
         for i in range(len(kernel)):
-            ave += float(data[index - len(kernel) + i][3])*kernel[i]
+            ave += float(data[index - (len(kernel)-1) + i][3])*kernel[i]
         
         new_data[index][3] = ave
         index+=1
