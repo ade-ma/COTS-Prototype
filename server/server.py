@@ -211,7 +211,6 @@ def compress_lossy(data, max_length):
     
     The strategy is to replace clusters of points by the average
     """
-    
     def x_val(datum): # timestamp
         return float(datum[1])
     
@@ -245,6 +244,9 @@ def compress_lossy(data, max_length):
         return list(data)
     
     index = block_size
+    if block_size == 0:
+	return data
+
     while index < len(data):
         
         block = data[index - block_size: index]
@@ -352,5 +354,5 @@ outlets = {'Lights':'94:10:3e:30:8f:69'}
 
 if __name__ == '__main__':
 
-    app.debug = True
-    app.run(host='0.0.0.0',port=8000)
+	app.debug = True
+	app.run(host='0.0.0.0',port=5000)
