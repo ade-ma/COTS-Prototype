@@ -33,44 +33,62 @@ def status():
 
 @app.route('/tempSense', methods=['GET', 'POST'])
 def tempSense():
-	sensorID = request.args.get('ID')
-	sensorValue = request.args.get('value')
-	
-	# format in milliseconds from epoch
-	ts = int(time.time()*1000)
+    sensorID = request.args.get('ID')
+    farm = request.args.get('farm')
+    sensorValue = request.args.get('value')
+    
+    # format in milliseconds from epoch
+    ts = int(time.time()*1000)
 
-	#Add data to volitile log
-	tempLog.append(['temp', ts, sensorID, sensorValue])
+    #Add data to volitile log
+    if farm in FARMS:
+        tempLog[farm].append(['temp', ts, sensorID, sensorValue])
+    else:
+        FARMS.append(farm)
+        tempLog[farm] = [['temp', ts, sensorID, sensorValue]]
+        humidityLog[farm] = []
+        
+    
+    fileName = str.format('log_{}.csv', farm)
+    
+    #Write sensorValue to CSV
+    with open(fileName, 'a') as csvfile:
+        writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        writer.writerow(['temp', str(ts), sensorID, sensorValue])
 
-	#Write sensorValue to CSV
-	with open('log.csv', 'a') as csvfile:
-	    writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-	    writer.writerow(['temp', str(ts), sensorID, sensorValue])
-
-	return "Sensor " + str(sensorID) + " is reporting a temperature of " + str(sensorValue) + " degrees."
-	
-	csvfile.close()
+    return "Sensor " + str(sensorID) + " is reporting a temperature of " + str(sensorValue) + " degrees."
+    
+    csvfile.close()
 
 
 @app.route('/humiditySense', methods=['GET', 'POST'])
 def humiditySense():
-	sensorID = request.args.get('ID')
-	sensorValue = request.args.get('value')
-	
-	# format in milliseconds from epoch
-	ts = int(time.time()*1000)
+    sensorID = request.args.get('ID')
+    farm = request.args.get('farm')
+    sensorValue = request.args.get('value')
+    
+    # format in milliseconds from epoch
+    ts = int(time.time()*1000)
 
-	#Add data to volitile log
-	humidityLog.append(['humidity', ts, sensorID, sensorValue])
+    #Add data to volitile log
+    if farm in FARMS:
+        humidityLog[farm].append(['humidity', ts, sensorID, sensorValue])
+    else:
+        FARMS.append(farm)
+        humidityLog[farm] = [['humidity', ts, sensorID, sensorValue]]
+        tempLog[farm] = []
+        print humidityLog.keys()
+        
+    fileName = str.format('log_{}.csv', farm)
+    
+    #Write sensorValue to CSV
+    with open(fileName, 'a') as csvfile:
+        writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        writer.writerow(['humidity', str(ts), sensorID, sensorValue])
 
-	#Write sensorValue to CSV
-	with open('log.csv', 'a') as csvfile:
-	    writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-	    writer.writerow(['humidity', str(ts), sensorID, sensorValue])
-
-	return "Humidity sensor " + str(sensorID) + " is reporting a humidity of " + str(sensorValue) + "%."
-	
-	csvfile.close()
+    return "Humidity sensor " + str(sensorID) + " is reporting a humidity of " + str(sensorValue) + "%."
+    
+    csvfile.close()
 
 
 #######################################################################################
@@ -79,69 +97,82 @@ def humiditySense():
 
 @app.route('/lastTemperature', methods=['GET', 'POST'])
 def lastTemp():
-	sensorID = request.args.get('ID')
-	for measurement in tempLog[::-1]:
-		if measurement[2] == sensorID:
-			return str(measurement[1]) + '--' + str(measurement[3])
-	return "E"
+    sensorID = request.args.get('ID')
+    farm = request.args.get('farm')
+    if farm in FARMS:
+        for measurement in tempLog[farm][::-1]:
+            if measurement[2] == sensorID:
+                return str(measurement[1]) + '--' + str(measurement[3])
+    else:
+        raise KeyError("no farm named: "+farm)
+    return "E"
 
 @app.route('/lastHumidity', methods=['GET', 'POST'])
 def lastHumidity():
-	sensorID = request.args.get('ID')
-	for measurement in humidityLog[::-1]:
-		if measurement[2] == sensorID:
-			return str(measurement[1]) + '--' + str(measurement[3])
-	return "E"
+    sensorID = request.args.get('ID')
+    farm = request.args.get('farm')
+    if farm in FARMS:
+        for measurement in humidityLog[farm][::-1]:
+            if measurement[2] == sensorID:
+                return str(measurement[1]) + '--' + str(measurement[3])
+    else:
+        raise KeyError("no farm named: "+farm)
+    return "E"
 
 DEFAULT_RANGE = '6' # number of hours
 DEFAULT_MAX_LENGTH = '300'
 @app.route('/rangeHumidity', methods=['GET', 'POST'])
 def rangeHumidity():
-	sensorID = request.args.get('ID')
-	hours = float(request.args.get('hours', DEFAULT_RANGE)) 
-	max_length = int(request.args.get('max_length', DEFAULT_MAX_LENGTH))
-	
-	seconds = 3600*hours
-	cutoff = 1000*(time.time() - seconds)
-	# filter to correct date range and just the sensor we want
-	recent = [data for data in humidityLog if data[2]==sensorID and int(data[1]) >= cutoff]
-	
-	if len(recent) != 0:
-	    first_filter = (lpass(recent))
-	    second_filter= compress(compress_lossy(first_filter, max_length))
-	    condensed = ['--'.join([str(x[1]), str(x[3])]) for x in second_filter]
-	    response = ';'.join(condensed)
-	    return response
-	
-	return "E"
+    sensorID = request.args.get('ID')
+    farm = request.args.get('farm')
+    hours = float(request.args.get('hours', DEFAULT_RANGE)) 
+    max_length = int(request.args.get('max_length', DEFAULT_MAX_LENGTH))
+    
+    seconds = 3600*hours
+    cutoff = 1000*(time.time() - seconds)
+    # filter to correct date range and just the sensor we want
+    print type(humidityLog)
+    humidityLog[farm]
+    recent = [data for data in humidityLog[farm] if data[2]==sensorID and int(data[1]) >= cutoff]
+    
+    if len(recent) != 0:
+        first_filter = (lpass(recent))
+        second_filter= compress(compress_lossy(first_filter, max_length))
+        condensed = ['--'.join([str(x[1]), str(x[3])]) for x in second_filter]
+        response = ';'.join(condensed)
+        return response
+    
+    return "E"
 
 @app.route('/rangeTemperature', methods=['GET', 'POST'])
 def rangeTemperature():
-	sensorID = request.args.get('ID')
-	hours = float(request.args.get('hours', DEFAULT_RANGE)) 
-	max_length = int(request.args.get('max_length', DEFAULT_MAX_LENGTH))
-	seconds = 3600*hours
-	cutoff = 1000*(time.time() - seconds)
-	
-	# filter to correct date range and just the sensor we want
-	recent = [data for data in tempLog if data[2]==sensorID and int(data[1]) >= cutoff]
-	
-	if len(recent) != 0:
-	    first_filter = (lpass(recent))
-	    second_filter= compress(compress_lossy(first_filter, max_length))
-	    condensed = ['--'.join([str(x[1]), str(x[3])]) for x in second_filter]
-	    response = ';'.join(condensed)
-	    return response
-	
-	return "E"
+    sensorID = request.args.get('ID')
+    farm = request.args.get('farm')
+    hours = float(request.args.get('hours', DEFAULT_RANGE)) 
+    max_length = int(request.args.get('max_length', DEFAULT_MAX_LENGTH))
+    seconds = 3600*hours
+    cutoff = 1000*(time.time() - seconds)
+    
+    # filter to correct date range and just the sensor we want
+    recent = [data for data in tempLog[farm] if data[2]==sensorID and int(data[1]) >= cutoff]
+    
+    if len(recent) != 0:
+        first_filter = (lpass(recent))
+        second_filter= compress(compress_lossy(first_filter, max_length))
+        condensed = ['--'.join([str(x[1]), str(x[3])]) for x in second_filter]
+        response = ';'.join(condensed)
+        return response
+    
+    return "E"
 
 @app.route('/lastCommand', methods=['GET', 'POST'])
 def lastCommand():
-	deviceID = request.args.get('ID')
-	for command in commandLog[::-1]:
-		if command[2] == deviceID:
-			return command[3]
-	return "E"
+    deviceID = request.args.get('ID')
+    farm = request.args.get('farm')
+    for command in commandLog[farm][::-1]:
+        if command[2] == deviceID:
+            return command[3]
+    return "E"
 
 def compress(data):
     """
@@ -159,7 +190,7 @@ def compress(data):
         dy = (y_val(datum2) - y_val(datum1))
         dx = (x_val(datum2) - x_val(datum1))
         return dy/dx
-      
+    
     # remove middle points in colinear sets of three
     index = 1
     while index < len(new_data)-1:
@@ -210,6 +241,9 @@ def compress_lossy(data, max_length):
     new_data = []
     
     block_size = int(round(len(data)/float(max_length)))
+    if block_size <= 1:
+        return list(data)
+    
     index = block_size
     while index < len(data):
         
@@ -232,7 +266,7 @@ def lpass(data):
     
     new_data = list(list(x) for x in data)
     
-    kernel = [.5, 1, 2, 2, 3, 3]
+    kernel = [.5, 1, 2, 3, 2, 2]
     kernel = [x/float(sum(kernel)) for x in kernel]
     
     index = len(kernel) -1
@@ -274,14 +308,15 @@ def toggleOutlet():
 
 @app.route('/getLogs', methods=['GET', 'POST'])
 def getLogs():
-	result = ""
-	for i in tempLog:
-		result = result + str(i) + '<br>'
-	for i in humidityLog:
-		result = result + str(i) + '<br>'
-	for i in commandLog:
-		result = result + str(i) + '<br>'
-	return result
+    result = ""
+    for farm in FARMS:
+        for i in tempLog[farm]:
+            result = result + str(i) + '<br>'
+        for i in humidityLog[farm]:
+            result = result + str(i) + '<br>'
+        for i in commandLog[farm]:
+            result = result + str(i) + '<br>'
+        return result
 
 
 #################################################################################
@@ -289,26 +324,33 @@ def getLogs():
 ## separate logs for different data types									   ##
 #################################################################################
 
-with open('log.csv', 'rb') as f:
-    reader = csv.reader(f)
-    log = list(reader)
+FARMS = ['tangerinis','firstlight','olin']
 
-tempLog = []
-humidityLog = []
-commandLog = []
+tempLog = {}
+humidityLog = {}
+commandLog = {}
+for farm in FARMS:
+    tempLog[farm] = []
+    humidityLog[farm] = []
+    commandLog[farm] = []
 
-for i in log:
-	if i[0] == 'temp':
-		tempLog.append(i)
-	if i[0] == 'humidity':
-		humidityLog.append(i)
-	if i[0] == 'command':
-		commandLog.append(i)
+for farm in FARMS:
+    file_name = str.format('log_{}.csv', farm)
+    with open(file_name, 'rb') as f:
+        reader = csv.reader(f)
+        log = list(reader)
+
+        for i in log:
+            if i[0] == 'temp':
+                tempLog[farm].append(i)
+            if i[0] == 'humidity':
+                humidityLog[farm].append(i)
+            if i[0] == 'command':
+                commandLog[farm].append(i)
 
 outlets = {'Lights':'94:10:3e:30:8f:69'}
 
-
 if __name__ == '__main__':
 
-	app.debug = True
-	app.run(host='0.0.0.0',port=8000)
+    app.debug = True
+    app.run(host='0.0.0.0',port=8000)
