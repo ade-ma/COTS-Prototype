@@ -37,6 +37,9 @@ def tempSense():
 	sensorID = request.args.get('ID')
 	sensorValue = request.args.get('value')
 	command = "python sendTemp.py " + str(sensorID) + " " + str(sensorValue)
+
+	if sensorValue == "" or sensorValue is None or sensorID == "" or sensorID is None:
+		return "E"
 	
 	#Relay data to public server!
 	subprocess.call(["python", "sendTemp.py", str(sensorID), str(sensorValue)])
@@ -59,6 +62,9 @@ def tempSense():
 def humiditySense():
 	sensorID = request.args.get('ID')
 	sensorValue = request.args.get('value')
+	
+	if sensorValue == "" or sensorValue is None or sensorID == "" or sensorID is None:
+		return "E"
 	
 	#Relay data to public server!
 	subprocess.call(["python", "sendHumidity.py", str(sensorID), str(sensorValue)])
@@ -150,7 +156,10 @@ def getLogs():
 
 with open('log.csv', 'rb') as f:
     reader = csv.reader(f)
-    log = list(reader)
+    try:
+    	log = list(reader)
+    except:
+	log = []
 
 tempLog = []
 humidityLog = []
