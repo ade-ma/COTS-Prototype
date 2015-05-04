@@ -26,6 +26,14 @@ cors = CORS(app)
 @app.route('/', methods=['GET', 'POST'])
 def status():
     return 'Your Sproutwave Server is Running!'
+    
+@app.route('/log', methods=['GET', 'POST'])
+def logIp():
+    ip = str(request.remote_addr)
+    fp = open('visit_log.txt', 'aw')
+    fp.write(str(time.time())+" -- "+ip+'\n')
+    fp.close()
+    return 'Logged visit from ' + ip + " at " + str(time.time())
 
 ###########################################################################
 ## These endpoints accept data from sensors and store the data in a csv. ##
